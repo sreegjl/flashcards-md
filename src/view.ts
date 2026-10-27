@@ -1,4 +1,4 @@
-import { Component, ItemView, MarkdownRenderer, Scope, TFile, ViewStateResult, WorkspaceLeaf, setIcon } from "obsidian";
+import { Component, ItemView, MarkdownRenderer, Platform, Scope, TFile, ViewStateResult, WorkspaceLeaf, setIcon } from "obsidian";
 import { Flashcard, parseCards, setStarred } from "./parser";
 
 export const VIEW_TYPE_FLASHCARDS = "flashcards-md-view";
@@ -172,6 +172,7 @@ export class FlashcardView extends ItemView {
 		const isChoice = card.choices.length > 0;
 		if (isChoice) this.renderChoiceCard(root, card, file.path);
 		else this.renderFlipCard(root, card, file.path);
+		this.addSwipe(root.querySelector<HTMLElement>(".fc-card")!);
 
 		const controls = root.createDiv("fc-controls");
 		this.iconButton(controls, "arrow-left", "Previous card", () => this.move(-1));
@@ -181,8 +182,36 @@ export class FlashcardView extends ItemView {
 		this.iconButton(controls, "arrow-right", "Next card", () => this.move(1));
 
 		root.createDiv({ cls: "fc-counter", text: `${this.position + 1} / ${cards.length}` });
-		const firstAction = isChoice ? `1–${Math.min(card.choices.length, 9)} to answer` : "Space to flip";
-		root.createDiv({ cls: "fc-hint", text: `${firstAction} · ← → to navigate · S to star` });
+		// Phones get touch hints; everything else (including iPads, which often have keyboards) gets shortcuts.
+		const hint = Platform.isPhone
+			? `${isChoice ? "Tap an answer" : "Tap the card to flip"} · Swipe to change cards`
+			: `${isChoice ? `1–${Math.min(card.choices.length, 9)} to answer` : "Space to flip"} · ← → to navigate · S to star`;
+		root.createDiv({ cls: "fc-hint", text: hint });
+	}
+
+	/** Swiping left/right on the card goes to the next/previous card. */
+	private addSwipe(el: HTMLElement): void {
+		let startX = 0;
+		let startY = 0;
+		let tracking = false;
+		// Stop propagation so Obsidian mobile doesn't also treat the swipe as opening a sidebar.
+		el.addEventListener("touchstart", (evt) => {
+			evt.stopPropagation();
+			tracking = evt.touches.length === 1;
+			if (!tracking) return;
+			startX = evt.touches[0].clientX;
+			startY = evt.touches[0].clientY;
+		}, { passive: true });
+		el.addEventListener("touchmove", (evt) => evt.stopPropagation(), { passive: true });
+		el.addEventListener("touchend", (evt) => {
+			evt.stopPropagation();
+			if (!tracking) return;
+			tracking = false;
+			const dx = evt.changedTouches[0].clientX - startX;
+			const dy = evt.changedTouches[0].clientY - startY;
+			// Mostly-horizontal and far enough to be deliberate, so vertical scrolling and taps aren't swipes.
+			if (Math.abs(dx) > 50 && Math.abs(dx) > 2 * Math.abs(dy)) this.move(dx < 0 ? 1 : -1);
+		});
 	}
 
 	private renderFlipCard(parent: HTMLElement, card: Flashcard, sourcePath: string): void {

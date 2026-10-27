@@ -8,16 +8,19 @@
 	padding: 24px 16px;
 }
 
+/* On narrow screens the controls wrap under the title instead of squeezing it */
 .fc-header {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 12px;
+	gap: 8px 12px;
 	width: 100%;
 	max-width: 640px;
 }
 
 .fc-title {
-	flex: 1;
+	flex: 1 1 200px;
+	min-width: 0;
 	font-size: var(--font-ui-large);
 	font-weight: var(--font-semibold);
 	overflow: hidden;
