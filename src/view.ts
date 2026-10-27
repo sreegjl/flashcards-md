@@ -13,6 +13,8 @@ export class FlashcardView extends ItemView {
 	private cards: Flashcard[] = [];
 	private position = 0;
 	private flipped = false;
+	/** Option picked on the current multiple-choice card, or null if unanswered. */
+	private answer: number | null = null;
 	private starredOnly = false;
 	private cardEl: HTMLElement | null = null;
 	// Owns the markdown rendered for the current card so it can be torn down on re-render.
@@ -26,6 +28,9 @@ export class FlashcardView extends ItemView {
 		this.scope.register([], "ArrowRight", () => { this.move(1); return false; });
 		this.scope.register([], "ArrowLeft", () => { this.move(-1); return false; });
 		this.scope.register([], "s", () => { void this.toggleStar(); return false; });
+		for (let n = 1; n <= 9; n++) {
+			this.scope.register([], String(n), () => { this.choose(n - 1); return false; });
+		}
 	}
 
 	getViewType(): string {
@@ -50,7 +55,7 @@ export class FlashcardView extends ItemView {
 		this.file = found instanceof TFile ? found : null;
 		this.starredOnly = !!starredOnly;
 		this.position = 0;
-		this.flipped = false;
+		this.resetCard();
 		await this.reload();
 		await super.setState(state, result);
 	}
@@ -94,7 +99,7 @@ export class FlashcardView extends ItemView {
 		if (keepPosition && found >= 0) {
 			this.position = found;
 		} else {
-			this.flipped = false;
+			this.resetCard();
 			this.position = keepPosition ? Math.min(this.position, Math.max(this.visibleCards.length - 1, 0)) : 0;
 		}
 		this.render();
@@ -140,26 +145,63 @@ export class FlashcardView extends ItemView {
 		}
 
 		const card = cards[this.position];
-		const cardEl = root.createDiv("fc-card");
-		cardEl.toggleClass("is-flipped", this.flipped);
-		const inner = cardEl.createDiv("fc-card-inner");
-		this.renderFace(inner, "Front", card.front, file.path);
-		this.renderFace(inner, "Back", card.back, file.path);
-		cardEl.onclick = (evt) => {
-			// Let links inside the card work without flipping it.
-			if (!(evt.target as HTMLElement).closest("a")) this.flip();
-		};
-		this.cardEl = cardEl;
+		const isChoice = card.choices.length > 0;
+		if (isChoice) this.renderChoiceCard(root, card, file.path);
+		else this.renderFlipCard(root, card, file.path);
 
 		const controls = root.createDiv("fc-controls");
 		this.iconButton(controls, "arrow-left", "Previous card", () => this.move(-1));
-		controls.createEl("button", { cls: "mod-cta fc-flip", text: "Flip" }).onclick = () => this.flip();
+		if (!isChoice) controls.createEl("button", { cls: "mod-cta fc-flip", text: "Flip" }).onclick = () => this.flip();
 		const starBtn = this.iconButton(controls, "star", card.starred ? "Unstar" : "Star", () => void this.toggleStar());
 		starBtn.toggleClass("is-starred", card.starred);
 		this.iconButton(controls, "arrow-right", "Next card", () => this.move(1));
 
 		root.createDiv({ cls: "fc-counter", text: `${this.position + 1} / ${cards.length}` });
-		root.createDiv({ cls: "fc-hint", text: "Space to flip · ← → to navigate · S to star" });
+		const firstAction = isChoice ? `1–${Math.min(card.choices.length, 9)} to answer` : "Space to flip";
+		root.createDiv({ cls: "fc-hint", text: `${firstAction} · ← → to navigate · S to star` });
+	}
+
+	private renderFlipCard(parent: HTMLElement, card: Flashcard, sourcePath: string): void {
+		const cardEl = parent.createDiv("fc-card");
+		cardEl.toggleClass("is-flipped", this.flipped);
+		const inner = cardEl.createDiv("fc-card-inner");
+		this.renderFace(inner, "Front", card.front, sourcePath);
+		this.renderFace(inner, "Back", card.back, sourcePath);
+		cardEl.onclick = (evt) => {
+			// Let links inside the card work without flipping it.
+			if (!(evt.target as HTMLElement).closest("a")) this.flip();
+		};
+		this.cardEl = cardEl;
+	}
+
+	private renderChoiceCard(parent: HTMLElement, card: Flashcard, sourcePath: string): void {
+		const face = parent.createDiv("fc-card fc-choice-card").createDiv("fc-face");
+		face.createDiv({ cls: "fc-face-label", text: "Question" });
+		this.renderMarkdown(face.createDiv("fc-face-body"), card.front, sourcePath);
+
+		const answer = this.answer;
+		const list = face.createDiv("fc-choices");
+		list.toggleClass("is-answered", answer !== null);
+		card.choices.forEach((choice, i) => {
+			const btn = list.createEl("button", { cls: "fc-choice" });
+			btn.createSpan({ cls: "fc-choice-key", text: String(i + 1) });
+			this.renderMarkdown(btn.createDiv("fc-choice-text"), choice.text, sourcePath);
+			if (answer !== null) {
+				if (choice.correct) btn.addClass("is-correct");
+				else if (i === answer) btn.addClass("is-wrong");
+			}
+			btn.onclick = (evt) => {
+				if (!(evt.target as HTMLElement).closest("a")) this.choose(i);
+			};
+		});
+
+		if (answer === null) return;
+		const correct = card.choices[answer].correct;
+		const result = face.createDiv(`fc-result ${correct ? "is-correct" : "is-wrong"}`);
+		setIcon(result.createSpan("fc-result-icon"), correct ? "check" : "x");
+		result.createSpan({ text: correct ? "Correct!" : "Not quite. The right answer is highlighted." });
+		// An optional back: on a multiple-choice card is shown as an explanation once answered.
+		if (card.back) this.renderMarkdown(face.createDiv("fc-explanation"), card.back, sourcePath);
 	}
 
 	private renderFace(parent: HTMLElement, label: string, markdown: string, sourcePath: string): void {
@@ -167,10 +209,14 @@ export class FlashcardView extends ItemView {
 		face.createDiv({ cls: "fc-face-label", text: label });
 		const body = face.createDiv("fc-face-body");
 		if (markdown) {
-			void MarkdownRenderer.render(this.app, markdown, body, sourcePath, this.renderComponent!);
+			this.renderMarkdown(body, markdown, sourcePath);
 		} else {
 			body.createSpan({ cls: "fc-placeholder", text: `(no ${label.toLowerCase()})` });
 		}
+	}
+
+	private renderMarkdown(el: HTMLElement, markdown: string, sourcePath: string): void {
+		void MarkdownRenderer.render(this.app, markdown, el, sourcePath, this.renderComponent!);
 	}
 
 	private iconButton(parent: HTMLElement, icon: string, label: string, onClick: () => void): HTMLButtonElement {
@@ -190,15 +236,29 @@ export class FlashcardView extends ItemView {
 		const count = this.visibleCards.length;
 		if (count === 0) return;
 		this.position = (this.position + delta + count) % count;
-		this.flipped = false;
+		this.resetCard();
 		this.render();
+	}
+
+	/** Picks an option on the current multiple-choice card; the first pick is final. */
+	private choose(choice: number): void {
+		const card = this.visibleCards[this.position];
+		if (!card || this.answer !== null || choice >= card.choices.length) return;
+		this.answer = choice;
+		this.render();
+	}
+
+	/** Clears progress on the current card: which side is up and any chosen answer. */
+	private resetCard(): void {
+		this.flipped = false;
+		this.answer = null;
 	}
 
 	private setStarredOnly(starredOnly: boolean): void {
 		if (this.starredOnly === starredOnly) return;
 		this.starredOnly = starredOnly;
 		this.position = 0;
-		this.flipped = false;
+		this.resetCard();
 		this.render();
 		this.app.workspace.requestSaveLayout();
 	}

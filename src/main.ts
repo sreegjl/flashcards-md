@@ -1,8 +1,9 @@
-import { MarkdownRenderChild, MarkdownRenderer, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
+import { Editor, MarkdownRenderChild, MarkdownRenderer, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
 import { parseBlock } from "./parser";
 import { FlashcardView, VIEW_TYPE_FLASHCARDS } from "./view";
 
 const CARD_SNIPPET = "```flashcard\nfront: \nback: \n```\n";
+const CHOICE_SNIPPET = "```flashcard\nfront: \n- [x] \n- [ ] \n- [ ] \n```\n";
 
 const NEW_NOTE_TEMPLATE = `# Flashcards
 
@@ -15,7 +16,22 @@ back: Paris
 front: What is 7 × 8?
 back: 56
 \`\`\`
+
+\`\`\`flashcard
+front: Which planet is closest to the Sun?
+- [ ] Venus
+- [x] Mercury
+- [ ] Mars
+\`\`\`
 `;
+
+/** Inserts a card snippet at the cursor, then puts the cursor right after "front: ". */
+function insertSnippet(editor: Editor, snippet: string): void {
+	const cursor = editor.getCursor();
+	const prefix = cursor.ch > 0 ? "\n" : "";
+	editor.replaceRange(prefix + snippet, cursor);
+	editor.setCursor({ line: cursor.line + (prefix ? 2 : 1), ch: "front: ".length });
+}
 
 export default class FlashcardsPlugin extends Plugin {
 	async onload(): Promise<void> {
@@ -29,12 +45,26 @@ export default class FlashcardsPlugin extends Plugin {
 
 			el.addClass("fc-inline");
 			if (card.starred) setIcon(el.createDiv({ cls: "fc-inline-star", attr: { "aria-label": "Starred" } }), "star");
-			for (const side of ["front", "back"] as const) {
-				const row = el.createDiv("fc-inline-row");
-				row.createDiv({ cls: "fc-inline-label", text: side === "front" ? "Front" : "Back" });
-				const body = row.createDiv("fc-inline-body");
-				void MarkdownRenderer.render(this.app, card[side], body, ctx.sourcePath, child);
+			const row = (label: string): HTMLElement => {
+				const rowEl = el.createDiv("fc-inline-row");
+				rowEl.createDiv({ cls: "fc-inline-label", text: label });
+				return rowEl.createDiv("fc-inline-body");
+			};
+			const render = (markdown: string, target: HTMLElement): void => {
+				void MarkdownRenderer.render(this.app, markdown, target, ctx.sourcePath, child);
+			};
+
+			render(card.front, row("Front"));
+			if (card.choices.length) {
+				const list = row("Choices").createEl("ol", { cls: "fc-inline-choices" });
+				for (const choice of card.choices) {
+					const item = list.createEl("li");
+					item.toggleClass("is-correct", choice.correct);
+					render(choice.text, item);
+				}
 			}
+			// Multiple-choice cards only have a back when it's used as an explanation.
+			if (card.back || !card.choices.length) render(card.back, row("Back"));
 		});
 
 		this.addRibbonIcon("layers", "Toggle flashcard view", () => {
@@ -56,13 +86,13 @@ export default class FlashcardsPlugin extends Plugin {
 		this.addCommand({
 			id: "insert-flashcard",
 			name: "Insert flashcard",
-			editorCallback: (editor) => {
-				const cursor = editor.getCursor();
-				const prefix = cursor.ch > 0 ? "\n" : "";
-				editor.replaceRange(prefix + CARD_SNIPPET, cursor);
-				// Put the cursor right after "front: ".
-				editor.setCursor({ line: cursor.line + (prefix ? 2 : 1), ch: "front: ".length });
-			},
+			editorCallback: (editor) => insertSnippet(editor, CARD_SNIPPET),
+		});
+
+		this.addCommand({
+			id: "insert-multiple-choice-flashcard",
+			name: "Insert multiple choice flashcard",
+			editorCallback: (editor) => insertSnippet(editor, CHOICE_SNIPPET),
 		});
 
 		this.registerEvent(this.app.workspace.on("file-menu", (menu, file) => {

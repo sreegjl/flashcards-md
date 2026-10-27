@@ -110,6 +110,127 @@
 	font-style: italic;
 }
 
+/* Multiple-choice cards don't flip; options sit under the question */
+.fc-choice-card {
+	cursor: default;
+	user-select: text;
+}
+
+.fc-choice-card .fc-face-body {
+	flex: none;
+	padding: 28px 0 24px;
+}
+
+.fc-choices {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.fc-choice {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 12px;
+	height: auto;
+	padding: 10px 14px;
+	text-align: left;
+	white-space: normal;
+	font-size: var(--font-ui-medium);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	box-shadow: none;
+	cursor: pointer;
+}
+
+.fc-choice:hover {
+	border-color: var(--interactive-accent);
+}
+
+.fc-choices.is-answered .fc-choice {
+	cursor: default;
+}
+
+.fc-choices.is-answered .fc-choice:hover {
+	border-color: var(--background-modifier-border);
+}
+
+.fc-choices.is-answered .fc-choice:not(.is-correct):not(.is-wrong) {
+	opacity: 0.55;
+}
+
+.fc-choice-key {
+	flex: none;
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	background: var(--background-modifier-hover);
+}
+
+.fc-choice-text > * {
+	margin: 0;
+}
+
+.fc-choice.is-correct,
+.fc-choices.is-answered .fc-choice.is-correct:hover {
+	border-color: var(--color-green);
+	background: rgba(var(--color-green-rgb), 0.12);
+}
+
+.fc-choice.is-wrong,
+.fc-choices.is-answered .fc-choice.is-wrong:hover {
+	border-color: var(--color-red);
+	background: rgba(var(--color-red-rgb), 0.12);
+}
+
+/* Plain white, since --text-on-accent can be dark when the theme's accent is light */
+.fc-choice.is-correct .fc-choice-key {
+	color: #fff;
+	background: var(--color-green);
+}
+
+.fc-choice.is-wrong .fc-choice-key {
+	color: #fff;
+	background: var(--color-red);
+}
+
+.fc-result {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 16px;
+	font-weight: var(--font-semibold);
+}
+
+.fc-result.is-correct {
+	color: var(--color-green);
+}
+
+.fc-result.is-wrong {
+	color: var(--color-red);
+}
+
+.fc-result-icon {
+	display: flex;
+}
+
+.fc-explanation {
+	margin-top: 8px;
+	color: var(--text-muted);
+}
+
+.fc-explanation > :first-child {
+	margin-top: 0;
+}
+
+.fc-explanation > :last-child {
+	margin-bottom: 0;
+}
+
 .fc-controls {
 	display: flex;
 	align-items: center;
@@ -148,6 +269,12 @@
 	overflow: hidden;
 }
 
+/* Reading view drops the margin a code block's <pre> would have had, so add it back
+   (Live Preview already spaces out its widgets). */
+.markdown-preview-view .fc-inline {
+	margin-block: var(--p-spacing, 1rem);
+}
+
 .fc-inline-row {
 	display: flex;
 	gap: 12px;
@@ -172,6 +299,25 @@
 
 .fc-inline-body > :last-child {
 	margin-bottom: 0;
+}
+
+.fc-inline-choices {
+	margin: 0;
+	padding-left: 1.4em;
+}
+
+.fc-inline-choices li > p {
+	display: inline;
+	margin: 0;
+}
+
+.fc-inline-choices li.is-correct {
+	color: var(--color-green);
+	font-weight: var(--font-semibold);
+}
+
+.fc-inline-choices li.is-correct::after {
+	content: " ✓";
 }
 
 .fc-inline-star {

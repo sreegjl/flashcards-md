@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.png" alt="flashcards.md: flashcards written in your Obsidian notes" width="100%" />
+<img src="docs/banner.png" alt="flashcards.md: simple flashcards for your Obsidian vault" width="100%" />
 
 </div>
 
@@ -30,6 +30,28 @@ back: Paris
 
 <img src="docs/flashcards_md.png" alt="A note of flashcards in reading view, one starred" width="100%" />
 
+### Multiple choice
+
+Give a card options as a checklist instead of a `back:`, and mark the right one with `[x]`:
+
+````markdown
+```flashcard
+front: Which planet is closest to the Sun?
+- [ ] Venus
+- [x] Mercury
+- [ ] Mars
+```
+````
+
+<p align="center">
+  <img src="docs/flashcard_choice.png" alt="A multiple-choice card with four numbered options" width="49%" />
+  <img src="docs/flashcard_choice_answered.png" alt="The same card after a wrong pick: the pick is red, the right answer green, with an explanation below" width="49%" />
+</p>
+
+In flashcard view, a multiple-choice card shows its options instead of flipping. Pick one to see if you got it right. The correct option turns green and a wrong pick turns red. If more than one option is marked `[x]`, any of them counts as right. You can still add a `back:` line, and it shows as an explanation after you answer.
+
+Any `- [ ]` or `- [x]` line in a card is treated as an option, so don't use checklists inside a regular card's `back:`.
+
 ## Studying
 
 Open a note in flashcard view in any of these ways. The ribbon icon and the command are toggles, so using either again switches back to the normal note:
@@ -43,6 +65,7 @@ In the view:
 | Action | Mouse | Key |
 | --- | --- | --- |
 | Flip card | Click the card or **Flip** | `Space` / `Enter` |
+| Answer a multiple-choice card | Click an option | `1`–`9` |
 | Previous / next card | Arrow buttons | `←` / `→` |
 | Star / unstar | Star button | `S` |
 | Show all or only starred cards | **All** / **Starred** toggle | |
@@ -52,8 +75,9 @@ Stars are saved in the note as a `starred: true` line inside the card's block. T
 
 ## Other commands
 
-- **Create new flashcard note** creates `Flashcards.md` with two example cards.
+- **Create new flashcard note** creates `Flashcards.md` with a few example cards.
 - **Insert flashcard** adds an empty card at the cursor.
+- **Insert multiple choice flashcard** adds an empty multiple-choice card with three options.
 
 ## Development
 
