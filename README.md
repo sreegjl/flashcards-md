@@ -1,6 +1,17 @@
+<div align="center">
+
+<img src="docs/banner.png" alt="flashcards.md: flashcards written in your Obsidian notes" width="100%" />
+
+</div>
+
 # Flashcards MD
 
 An Obsidian plugin for writing flashcards in your notes and studying them in a flip-card view.
+
+<p align="center">
+  <img src="docs/flashcard_front.png" alt="Flashcard view showing the front of a card" width="49%" />
+  <img src="docs/flashcard_back.png" alt="The same card flipped to its back" width="49%" />
+</p>
 
 ## Writing cards
 
@@ -16,6 +27,8 @@ back: Paris
 - Values can run over several lines. Any line that doesn't start with `front:`, `back:` or `starred:` continues the field above it.
 - Markdown works on both sides, including bold, lists, links and images.
 - In reading view, each block shows as a small front/back preview.
+
+<img src="docs/flashcards_md.png" alt="A note of flashcards in reading view, one starred" width="100%" />
 
 ## Studying
 
@@ -48,6 +61,7 @@ Stars are saved in the note as a `starred: true` line inside the card's block. T
 npm install
 npm run dev     # watch mode
 npm run build   # type-check and production build
+npm run banner  # re-render docs/banner.png from docs/banner/banner.html
 ```
 
 To install by hand, copy `main.js`, `manifest.json` and `styles.css` into `<vault>/.obsidian/plugins/flashcards-md/`. Then turn on the plugin under **Settings → Community plugins**.
