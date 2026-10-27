@@ -6,7 +6,7 @@
 
 # Flashcards MD
 
-An Obsidian plugin for writing flashcards in your notes and studying them in a flip-card view.
+An Obsidian plugin for writing flashcards in your notes, including [multiple-choice](#multiple-choice) and [typed-answer](#typed-answer) cards, and studying them in a flip-card view.
 
 <p align="center">
   <img src="docs/flashcard_front.png" alt="Flashcard view showing the front of a card" width="49%" />
@@ -24,7 +24,7 @@ back: Paris
 ```
 ````
 
-- Values can run over several lines. Any line that doesn't start with `front:`, `back:` or `starred:` continues the field above it.
+- Values can run over several lines. Any line that doesn't start with `front:`, `back:`, `answer:` or `starred:` continues the field above it.
 - Markdown works on both sides, including bold, lists, links and images.
 - In reading view, each block shows as a small front/back preview.
 
@@ -52,6 +52,37 @@ In flashcard view, a multiple-choice card shows its options instead of flipping.
 
 Any `- [ ]` or `- [x]` line in a card is treated as an option, so don't use checklists inside a regular card's `back:`.
 
+### Typed answer
+
+Give a card an `answer:` instead of a `back:` to type the answer in yourself:
+
+````markdown
+```flashcard
+front: What is the chemical symbol for gold?
+answer: Au
+```
+````
+
+<p align="center">
+  <img src="docs/flashcard_typed.png" alt="A typed-answer card with 9.9 typed into the answer box" width="49%" />
+  <img src="docs/flashcard_typed_answered.png" alt="The same card after checking: 9.9 is within the 9.899 ± 0.05 range, so it's marked correct, with the working shown below" width="49%" />
+</p>
+
+In flashcard view, type your answer and press `Enter` or **Check**. Matching ignores capitals, extra spaces and a trailing `.`, `!` or `?`. Anything else has to match exactly. For more than one accepted answer, add more `answer:` lines. If you get it wrong, the card shows the first answer. As with multiple choice, an optional `back:` shows as an explanation after you check.
+
+For a number, give a range with `±` (or `+-`), either as an amount or a percent. A unit can follow it:
+
+````markdown
+```flashcard
+front: A ball is dropped from 5.0 m. How fast is it going when it lands?
+answer: 9.899 ± 0.05 m/s
+```
+````
+
+Here anything within 0.05 of 9.899 counts, so `9.9` and `9.90` are right but `10` isn't. The unit is optional, but a different unit like `km/s` is marked wrong. `answer: 120 ± 5% N` accepts 114 to 126. Without a `±`, a number has to be exactly equal, though `56`, `56.0` and `5.6e1` all count.
+
+While the answer box is selected, keys type into it instead of acting as shortcuts. `←` and `→` still change cards while the box is empty, and `Esc` leaves the box.
+
 ## Studying
 
 Open a note in flashcard view in any of these ways. The ribbon icon and the command are toggles, so using either again switches back to the normal note:
@@ -66,6 +97,8 @@ In the view:
 | --- | --- | --- |
 | Flip card | Click the card or **Flip** | `Space` / `Enter` |
 | Answer a multiple-choice card | Click an option | `1`–`9` |
+| Check a typed answer | **Check** | `Enter` |
+| Next card after answering | Arrow button | `Enter` |
 | Previous / next card | Arrow buttons | `←` / `→` |
 | Star / unstar | Star button | `S` |
 | Show all or only starred cards | **All** / **Starred** toggle | |
@@ -79,6 +112,7 @@ Stars are saved in the note as a `starred: true` line inside the card's block. T
 - **Create new flashcard note** creates `Flashcards.md` with a few example cards.
 - **Insert flashcard** adds an empty card at the cursor.
 - **Insert multiple choice flashcard** adds an empty multiple-choice card with three options.
+- **Insert typed answer flashcard** adds an empty typed-answer card.
 
 ## Development
 
@@ -86,7 +120,6 @@ Stars are saved in the note as a `starred: true` line inside the card's block. T
 npm install
 npm run dev     # watch mode
 npm run build   # type-check and production build
-npm run banner  # re-render docs/banner.png from docs/banner/banner.html
 ```
 
 To install by hand, copy `main.js`, `manifest.json` and `styles.css` into `<vault>/.obsidian/plugins/flashcards-md/`. Then turn on the plugin under **Settings → Community plugins**.

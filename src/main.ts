@@ -4,6 +4,7 @@ import { FlashcardView, VIEW_TYPE_FLASHCARDS } from "./view";
 
 const CARD_SNIPPET = "```flashcard\nfront: \nback: \n```\n";
 const CHOICE_SNIPPET = "```flashcard\nfront: \n- [x] \n- [ ] \n- [ ] \n```\n";
+const TYPED_SNIPPET = "```flashcard\nfront: \nanswer: \n```\n";
 
 const NEW_NOTE_TEMPLATE = `# Flashcards
 
@@ -14,7 +15,7 @@ back: Paris
 
 \`\`\`flashcard
 front: What is 7 × 8?
-back: 56
+answer: 56
 \`\`\`
 
 \`\`\`flashcard
@@ -62,9 +63,11 @@ export default class FlashcardsPlugin extends Plugin {
 					item.toggleClass("is-correct", choice.correct);
 					render(choice.text, item);
 				}
+			} else if (card.answers.length) {
+				row("Answer").setText(card.answers.join(" / "));
 			}
-			// Multiple-choice cards only have a back when it's used as an explanation.
-			if (card.back || !card.choices.length) render(card.back, row("Back"));
+			// Multiple-choice and typed-answer cards only have a back when it's used as an explanation.
+			if (card.back || (!card.choices.length && !card.answers.length)) render(card.back, row("Back"));
 		});
 
 		this.addRibbonIcon("layers", "Toggle flashcard view", () => {
@@ -93,6 +96,12 @@ export default class FlashcardsPlugin extends Plugin {
 			id: "insert-multiple-choice-flashcard",
 			name: "Insert multiple choice flashcard",
 			editorCallback: (editor) => insertSnippet(editor, CHOICE_SNIPPET),
+		});
+
+		this.addCommand({
+			id: "insert-typed-answer-flashcard",
+			name: "Insert typed answer flashcard",
+			editorCallback: (editor) => insertSnippet(editor, TYPED_SNIPPET),
 		});
 
 		this.registerEvent(this.app.workspace.on("file-menu", (menu, file) => {

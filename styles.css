@@ -117,13 +117,15 @@
 	font-style: italic;
 }
 
-/* Multiple-choice cards don't flip; options sit under the question */
-.fc-choice-card {
+/* Multiple-choice and typed-answer cards don't flip; the options or answer box sit under the question */
+.fc-choice-card,
+.fc-typed-card {
 	cursor: default;
 	user-select: text;
 }
 
-.fc-choice-card .fc-face-body {
+.fc-choice-card .fc-face-body,
+.fc-typed-card .fc-face-body {
 	flex: none;
 	padding: 28px 0 24px;
 }
@@ -203,6 +205,40 @@
 .fc-choice.is-wrong .fc-choice-key {
 	color: #fff;
 	background: var(--color-red);
+}
+
+.fc-answer-row {
+	display: flex;
+	gap: 8px;
+}
+
+.fc-answer-row button {
+	height: auto;
+}
+
+.fc-answer-input {
+	flex: 1;
+	min-width: 0;
+	height: auto;
+	padding: 10px 14px;
+	font-size: var(--font-ui-medium);
+}
+
+/* Keep a checked answer readable instead of greyed out like a normal disabled input */
+.fc-answer-row .fc-answer-input:disabled {
+	opacity: 1;
+	color: var(--text-normal);
+	cursor: default;
+}
+
+.fc-answer-input.is-correct {
+	border-color: var(--color-green);
+	background: rgba(var(--color-green-rgb), 0.12);
+}
+
+.fc-answer-input.is-wrong {
+	border-color: var(--color-red);
+	background: rgba(var(--color-red-rgb), 0.12);
 }
 
 .fc-result {

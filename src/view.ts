@@ -1,7 +1,13 @@
 import { Component, ItemView, MarkdownRenderer, Platform, Scope, TFile, ViewStateResult, WorkspaceLeaf, setIcon } from "obsidian";
-import { Flashcard, parseCards, setStarred } from "./parser";
+import { Flashcard, isCorrectAnswer, parseCards, setStarred } from "./parser";
 
 export const VIEW_TYPE_FLASHCARDS = "flashcards-md-view";
+
+/** True when a key press is going into a text field, where it should type rather than trigger a shortcut. */
+function isTyping(evt: KeyboardEvent): boolean {
+	const el = evt.target as HTMLElement | null;
+	return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+}
 
 interface FlashcardViewState {
 	file?: string;
@@ -16,6 +22,10 @@ export class FlashcardView extends ItemView {
 	private flipped = false;
 	/** Option picked on the current multiple-choice card, or null if unanswered. */
 	private answer: number | null = null;
+	/** Answer submitted on the current typed-answer card, or null if not checked yet. */
+	private typed: string | null = null;
+	// What's in the answer box before it's checked, so re-renders (like starring) don't wipe it.
+	private draft = "";
 	private starredOnly = false;
 	private shuffled = false;
 	// Random sort key per card (keyed by block index), so the shuffled order survives re-reads of the note.
@@ -27,14 +37,20 @@ export class FlashcardView extends ItemView {
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
 		this.scope = new Scope(this.app.scope);
-		this.scope.register([], " ", () => { this.flip(); return false; });
-		this.scope.register([], "Enter", () => { this.flip(); return false; });
-		this.scope.register([], "ArrowRight", () => { this.move(1); return false; });
-		this.scope.register([], "ArrowLeft", () => { this.move(-1); return false; });
-		this.scope.register([], "s", () => { void this.toggleStar(); return false; });
-		for (let n = 1; n <= 9; n++) {
-			this.scope.register([], String(n), () => { this.choose(n - 1); return false; });
-		}
+		// Shortcuts step aside while typing an answer; arrows still navigate from an empty answer box.
+		const shortcut = (key: string, action: () => void, whileEmpty = false): void => {
+			this.scope!.register([], key, (evt) => {
+				if (isTyping(evt) && !(whileEmpty && !(evt.target as HTMLInputElement).value)) return true;
+				action();
+				return false;
+			});
+		};
+		shortcut(" ", () => this.flip());
+		shortcut("Enter", () => this.enter());
+		shortcut("ArrowRight", () => this.move(1), true);
+		shortcut("ArrowLeft", () => this.move(-1), true);
+		shortcut("s", () => void this.toggleStar());
+		for (let n = 1; n <= 9; n++) shortcut(String(n), () => this.choose(n - 1));
 	}
 
 	getViewType(): string {
@@ -170,22 +186,29 @@ export class FlashcardView extends ItemView {
 
 		const card = cards[this.position];
 		const isChoice = card.choices.length > 0;
+		const isTyped = !isChoice && card.answers.length > 0;
 		if (isChoice) this.renderChoiceCard(root, card, file.path);
+		else if (isTyped) this.renderTypedCard(root, card, file.path);
 		else this.renderFlipCard(root, card, file.path);
 		this.addSwipe(root.querySelector<HTMLElement>(".fc-card")!);
 
 		const controls = root.createDiv("fc-controls");
 		this.iconButton(controls, "arrow-left", "Previous card", () => this.move(-1));
-		if (!isChoice) controls.createEl("button", { cls: "mod-cta fc-flip", text: "Flip" }).onclick = () => this.flip();
+		if (!isChoice && !isTyped) controls.createEl("button", { cls: "mod-cta fc-flip", text: "Flip" }).onclick = () => this.flip();
 		const starBtn = this.iconButton(controls, "star", card.starred ? "Unstar" : "Star", () => void this.toggleStar());
 		starBtn.toggleClass("is-starred", card.starred);
 		this.iconButton(controls, "arrow-right", "Next card", () => this.move(1));
 
 		root.createDiv({ cls: "fc-counter", text: `${this.position + 1} / ${cards.length}` });
 		// Phones get touch hints; everything else (including iPads, which often have keyboards) gets shortcuts.
-		const hint = Platform.isPhone
-			? `${isChoice ? "Tap an answer" : "Tap the card to flip"} · Swipe to change cards`
-			: `${isChoice ? `1–${Math.min(card.choices.length, 9)} to answer` : "Space to flip"} · ← → to navigate · S to star`;
+		let hint: string;
+		if (Platform.isPhone) {
+			hint = `${isChoice ? "Tap an answer" : isTyped ? "Type your answer" : "Tap the card to flip"} · Swipe to change cards`;
+		} else if (isTyped) {
+			hint = this.typed === null ? "Enter to check · ← → to navigate" : "Enter for the next card · ← → to navigate · S to star";
+		} else {
+			hint = `${isChoice ? `1–${Math.min(card.choices.length, 9)} to answer` : "Space to flip"} · ← → to navigate · S to star`;
+		}
 		root.createDiv({ cls: "fc-hint", text: hint });
 	}
 
@@ -257,6 +280,52 @@ export class FlashcardView extends ItemView {
 		if (card.back) this.renderMarkdown(face.createDiv("fc-explanation"), card.back, sourcePath);
 	}
 
+	private renderTypedCard(parent: HTMLElement, card: Flashcard, sourcePath: string): void {
+		const face = parent.createDiv("fc-card fc-typed-card").createDiv("fc-face");
+		face.createDiv({ cls: "fc-face-label", text: "Question" });
+		this.renderMarkdown(face.createDiv("fc-face-body"), card.front, sourcePath);
+
+		const typed = this.typed;
+		const row = face.createDiv("fc-answer-row");
+		const input = row.createEl("input", {
+			cls: "fc-answer-input",
+			type: "text",
+			attr: { placeholder: "Type your answer", autocomplete: "off", autocapitalize: "off", spellcheck: "false" },
+		});
+
+		if (typed === null) {
+			input.value = this.draft;
+			input.oninput = () => { this.draft = input.value; };
+			input.onkeydown = (evt) => {
+				if (evt.key === "Enter") {
+					evt.preventDefault();
+					this.check(input.value);
+				} else if (evt.key === "Escape") {
+					input.blur();
+				}
+			};
+			row.createEl("button", { cls: "mod-cta", text: "Check" }).onclick = () => this.check(input.value);
+			// Ready to type, unless focus is somewhere else (like an editor beside this view) or it would pop up a phone keyboard.
+			const focused = input.doc.activeElement;
+			if (!Platform.isMobile && (!focused || focused === input.doc.body)) input.focus();
+			return;
+		}
+
+		const correct = isCorrectAnswer(card, typed);
+		input.value = typed;
+		input.disabled = true;
+		input.addClass(correct ? "is-correct" : "is-wrong");
+
+		const result = face.createDiv(`fc-result ${correct ? "is-correct" : "is-wrong"}`);
+		setIcon(result.createSpan("fc-result-icon"), correct ? "check" : "x");
+		const message = result.createSpan({ text: correct ? "Correct!" : "Not quite. The answer is " });
+		if (!correct) {
+			message.createEl("strong", { text: card.answers[0] });
+			message.appendText(".");
+		}
+		if (card.back) this.renderMarkdown(face.createDiv("fc-explanation"), card.back, sourcePath);
+	}
+
 	private renderFace(parent: HTMLElement, label: string, markdown: string, sourcePath: string): void {
 		const face = parent.createDiv(`fc-face fc-${label.toLowerCase()}`);
 		face.createDiv({ cls: "fc-face-label", text: label });
@@ -301,10 +370,29 @@ export class FlashcardView extends ItemView {
 		this.render();
 	}
 
-	/** Clears progress on the current card: which side is up and any chosen answer. */
+	/** Checks a typed answer on the current card; blank answers are ignored and the first check is final. */
+	private check(text: string): void {
+		const card = this.visibleCards[this.position];
+		if (!card || this.typed !== null || !card.answers.length || !text.trim()) return;
+		this.typed = text.trim();
+		this.render();
+	}
+
+	/** Enter flips a flip card, focuses an unchecked answer box, and goes to the next card once a question is answered. */
+	private enter(): void {
+		const card = this.visibleCards[this.position];
+		if (!card) return;
+		if (this.cardEl) this.flip();
+		else if (this.answer !== null || this.typed !== null) this.move(1);
+		else this.contentEl.querySelector<HTMLInputElement>(".fc-answer-input")?.focus();
+	}
+
+	/** Clears progress on the current card: which side is up and any chosen or typed answer. */
 	private resetCard(): void {
 		this.flipped = false;
 		this.answer = null;
+		this.typed = null;
+		this.draft = "";
 	}
 
 	private setStarredOnly(starredOnly: boolean): void {
