@@ -6,6 +6,7 @@ export const VIEW_TYPE_FLASHCARDS = "flashcards-md-view";
 interface FlashcardViewState {
 	file?: string;
 	starredOnly?: boolean;
+	shuffled?: boolean;
 }
 
 export class FlashcardView extends ItemView {
@@ -16,6 +17,9 @@ export class FlashcardView extends ItemView {
 	/** Option picked on the current multiple-choice card, or null if unanswered. */
 	private answer: number | null = null;
 	private starredOnly = false;
+	private shuffled = false;
+	// Random sort key per card (keyed by block index), so the shuffled order survives re-reads of the note.
+	private shuffleRanks = new Map<number, number>();
 	private cardEl: HTMLElement | null = null;
 	// Owns the markdown rendered for the current card so it can be torn down on re-render.
 	private renderComponent: Component | null = null;
@@ -46,14 +50,16 @@ export class FlashcardView extends ItemView {
 	}
 
 	getState(): Record<string, unknown> {
-		return { file: this.file?.path, starredOnly: this.starredOnly };
+		return { file: this.file?.path, starredOnly: this.starredOnly, shuffled: this.shuffled };
 	}
 
 	async setState(state: unknown, result: ViewStateResult): Promise<void> {
-		const { file, starredOnly } = (state ?? {}) as FlashcardViewState;
+		const { file, starredOnly, shuffled } = (state ?? {}) as FlashcardViewState;
 		const found = file ? this.app.vault.getAbstractFileByPath(file) : null;
 		this.file = found instanceof TFile ? found : null;
 		this.starredOnly = !!starredOnly;
+		this.shuffled = !!shuffled;
+		this.shuffleRanks.clear();
 		this.position = 0;
 		this.resetCard();
 		await this.reload();
@@ -87,7 +93,17 @@ export class FlashcardView extends ItemView {
 	}
 
 	private get visibleCards(): Flashcard[] {
-		return this.starredOnly ? this.cards.filter((card) => card.starred) : this.cards;
+		const cards = this.starredOnly ? this.cards.filter((card) => card.starred) : this.cards;
+		return this.shuffled ? [...cards].sort((a, b) => this.shuffleRank(a) - this.shuffleRank(b)) : cards;
+	}
+
+	private shuffleRank(card: Flashcard): number {
+		let rank = this.shuffleRanks.get(card.index);
+		if (rank === undefined) {
+			rank = Math.random();
+			this.shuffleRanks.set(card.index, rank);
+		}
+		return rank;
 	}
 
 	/** Re-reads the note. With `keepPosition`, stays on the same card if it still exists. */
@@ -128,6 +144,14 @@ export class FlashcardView extends ItemView {
 		(this.starredOnly ? starredBtn : allBtn).addClass("is-active");
 		allBtn.onclick = () => this.setStarredOnly(false);
 		starredBtn.onclick = () => this.setStarredOnly(true);
+
+		const shuffleBtn = header.createEl("button", {
+			cls: "clickable-icon fc-shuffle",
+			attr: { "aria-label": this.shuffled ? "Back to note order" : "Shuffle" },
+		});
+		setIcon(shuffleBtn, "shuffle");
+		shuffleBtn.toggleClass("is-active", this.shuffled);
+		shuffleBtn.onclick = () => this.toggleShuffle();
 
 		const editBtn = header.createEl("button", { cls: "clickable-icon fc-edit", attr: { "aria-label": "Edit note" } });
 		setIcon(editBtn, "pencil");
@@ -257,6 +281,16 @@ export class FlashcardView extends ItemView {
 	private setStarredOnly(starredOnly: boolean): void {
 		if (this.starredOnly === starredOnly) return;
 		this.starredOnly = starredOnly;
+		this.position = 0;
+		this.resetCard();
+		this.render();
+		this.app.workspace.requestSaveLayout();
+	}
+
+	/** Turns shuffling on (with a fresh random order) or off (back to note order), starting from the first card. */
+	private toggleShuffle(): void {
+		this.shuffled = !this.shuffled;
+		this.shuffleRanks.clear();
 		this.position = 0;
 		this.resetCard();
 		this.render();

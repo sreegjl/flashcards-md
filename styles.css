@@ -44,6 +44,10 @@
 	color: var(--text-on-accent);
 }
 
+.fc-shuffle.is-active {
+	color: var(--interactive-accent);
+}
+
 .fc-empty {
 	margin-top: 48px;
 	color: var(--text-muted);

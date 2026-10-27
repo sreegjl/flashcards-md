@@ -69,6 +69,7 @@ In the view:
 | Previous / next card | Arrow buttons | `←` / `→` |
 | Star / unstar | Star button | `S` |
 | Show all or only starred cards | **All** / **Starred** toggle | |
+| Shuffle, or go back to note order | Shuffle button | |
 | Go back to editing | Pencil button | |
 
 Stars are saved in the note as a `starred: true` line inside the card's block. They stay with the note when you sync, rename or move it.
