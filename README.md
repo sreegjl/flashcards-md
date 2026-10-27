@@ -4,14 +4,25 @@
 
 </div>
 
-# Flashcards MD
+---
+
+<div align="center">
+
+### Flashcards MD
 
 An Obsidian plugin for writing flashcards in your notes, including [multiple-choice](#multiple-choice) and [typed-answer](#typed-answer) cards, and studying them in a flip-card view.
 
-<p align="center">
-  <img src="docs/flashcard_front.png" alt="Flashcard view showing the front of a card" width="49%" />
-  <img src="docs/flashcard_back.png" alt="The same card flipped to its back" width="49%" />
+<br/>
+
+<p>
+  <img alt="Obsidian" src="https://img.shields.io/badge/Obsidian-1F2937?style=flat-square&logo=obsidian&logoColor=white" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-1F2937?style=flat-square&logo=typescript&logoColor=white" />
+  <a href="https://www.gnu.org/licenses/gpl-3.0"><img alt="License GPLv3" src="https://img.shields.io/badge/License-GPLv3-3E7BC4?style=flat-square&logo=gnu&logoColor=white&labelColor=1F2937" /></a>
 </p>
+
+</div>
+
+<br/>
 
 ## Writing cards
 
@@ -26,9 +37,12 @@ back: Paris
 
 - Values can run over several lines. Any line that doesn't start with `front:`, `back:`, `answer:` or `starred:` continues the field above it.
 - Markdown works on both sides, including bold, lists, links and images.
-- In reading view, each block shows as a small front/back preview.
+- In reading view, each block shows as a small front/back preview. To study a card right in the note instead, see [Playable cards in notes](#playable-cards-in-notes).
 
-<img src="docs/flashcards_md.png" alt="A note of flashcards in reading view, one starred" width="100%" />
+<p align="center">
+  <img src="docs/flashcard_front.png" alt="Flashcard view showing the front of a card" width="49%" />
+  <img src="docs/flashcard_back.png" alt="The same card flipped to its back" width="49%" />
+</p>
 
 ### Multiple choice
 
@@ -82,6 +96,21 @@ answer: 9.899 ± 0.05 m/s
 Here anything within 0.05 of 9.899 counts, so `9.9` and `9.90` are right but `10` isn't. The unit is optional, but a different unit like `km/s` is marked wrong. `answer: 120 ± 5% N` accepts 114 to 126. Without a `±`, a number has to be exactly equal, though `56`, `56.0` and `5.6e1` all count.
 
 While the answer box is selected, keys type into it instead of acting as shortcuts. `←` and `→` still change cards while the box is empty, and `Esc` leaves the box.
+
+### Playable cards in notes
+
+Write `flashcard-inline` instead of `flashcard` to make a card playable right in the note, in both reading view and Live Preview:
+
+````markdown
+```flashcard-inline
+front: What is 7 × 8?
+answer: 56
+```
+````
+
+<img src="docs/flashcard_inline.png" alt="A study guide in reading view with three inline cards: a multiple-choice card answered wrong, a typed-answer card answered right, and an unanswered typed-answer card" width="100%" />
+
+Instead of the front/back preview, the note shows the card itself. Click a regular card to flip it, pick an option on a multiple-choice card, or type into a typed-answer card. After answering, the ↺ button in the corner resets the card so you can try again. Inline cards also show up in flashcard view like any other card, and can be mixed with regular `flashcard` blocks in the same note.
 
 ## Studying
 

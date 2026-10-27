@@ -1,5 +1,6 @@
-import { Component, ItemView, MarkdownRenderer, Platform, Scope, TFile, ViewStateResult, WorkspaceLeaf, setIcon } from "obsidian";
-import { Flashcard, isCorrectAnswer, parseCards, setStarred } from "./parser";
+import { Component, ItemView, Platform, Scope, TFile, ViewStateResult, WorkspaceLeaf, setIcon } from "obsidian";
+import { CardWidget } from "./card";
+import { Flashcard, parseCards, setStarred } from "./parser";
 
 export const VIEW_TYPE_FLASHCARDS = "flashcards-md-view";
 
@@ -19,18 +20,11 @@ export class FlashcardView extends ItemView {
 	private file: TFile | null = null;
 	private cards: Flashcard[] = [];
 	private position = 0;
-	private flipped = false;
-	/** Option picked on the current multiple-choice card, or null if unanswered. */
-	private answer: number | null = null;
-	/** Answer submitted on the current typed-answer card, or null if not checked yet. */
-	private typed: string | null = null;
-	// What's in the answer box before it's checked, so re-renders (like starring) don't wipe it.
-	private draft = "";
 	private starredOnly = false;
 	private shuffled = false;
 	// Random sort key per card (keyed by block index), so the shuffled order survives re-reads of the note.
 	private shuffleRanks = new Map<number, number>();
-	private cardEl: HTMLElement | null = null;
+	private widget = new CardWidget(this.app, () => this.render(), true);
 	// Owns the markdown rendered for the current card so it can be torn down on re-render.
 	private renderComponent: Component | null = null;
 
@@ -140,7 +134,6 @@ export class FlashcardView extends ItemView {
 	private render(): void {
 		const root = this.contentEl;
 		root.empty();
-		this.cardEl = null;
 		if (this.renderComponent) this.removeChild(this.renderComponent);
 		this.renderComponent = this.addChild(new Component());
 
@@ -187,10 +180,7 @@ export class FlashcardView extends ItemView {
 		const card = cards[this.position];
 		const isChoice = card.choices.length > 0;
 		const isTyped = !isChoice && card.answers.length > 0;
-		if (isChoice) this.renderChoiceCard(root, card, file.path);
-		else if (isTyped) this.renderTypedCard(root, card, file.path);
-		else this.renderFlipCard(root, card, file.path);
-		this.addSwipe(root.querySelector<HTMLElement>(".fc-card")!);
+		this.addSwipe(this.widget.render(root, card, file.path, this.renderComponent));
 
 		const controls = root.createDiv("fc-controls");
 		this.iconButton(controls, "arrow-left", "Previous card", () => this.move(-1));
@@ -205,7 +195,7 @@ export class FlashcardView extends ItemView {
 		if (Platform.isPhone) {
 			hint = `${isChoice ? "Tap an answer" : isTyped ? "Type your answer" : "Tap the card to flip"} · Swipe to change cards`;
 		} else if (isTyped) {
-			hint = this.typed === null ? "Enter to check · ← → to navigate" : "Enter for the next card · ← → to navigate · S to star";
+			hint = !this.widget.answered ? "Enter to check · ← → to navigate" : "Enter for the next card · ← → to navigate · S to star";
 		} else {
 			hint = `${isChoice ? `1–${Math.min(card.choices.length, 9)} to answer` : "Space to flip"} · ← → to navigate · S to star`;
 		}
@@ -237,110 +227,6 @@ export class FlashcardView extends ItemView {
 		});
 	}
 
-	private renderFlipCard(parent: HTMLElement, card: Flashcard, sourcePath: string): void {
-		const cardEl = parent.createDiv("fc-card");
-		cardEl.toggleClass("is-flipped", this.flipped);
-		const inner = cardEl.createDiv("fc-card-inner");
-		this.renderFace(inner, "Front", card.front, sourcePath);
-		this.renderFace(inner, "Back", card.back, sourcePath);
-		cardEl.onclick = (evt) => {
-			// Let links inside the card work without flipping it.
-			if (!(evt.target as HTMLElement).closest("a")) this.flip();
-		};
-		this.cardEl = cardEl;
-	}
-
-	private renderChoiceCard(parent: HTMLElement, card: Flashcard, sourcePath: string): void {
-		const face = parent.createDiv("fc-card fc-choice-card").createDiv("fc-face");
-		face.createDiv({ cls: "fc-face-label", text: "Question" });
-		this.renderMarkdown(face.createDiv("fc-face-body"), card.front, sourcePath);
-
-		const answer = this.answer;
-		const list = face.createDiv("fc-choices");
-		list.toggleClass("is-answered", answer !== null);
-		card.choices.forEach((choice, i) => {
-			const btn = list.createEl("button", { cls: "fc-choice" });
-			btn.createSpan({ cls: "fc-choice-key", text: String(i + 1) });
-			this.renderMarkdown(btn.createDiv("fc-choice-text"), choice.text, sourcePath);
-			if (answer !== null) {
-				if (choice.correct) btn.addClass("is-correct");
-				else if (i === answer) btn.addClass("is-wrong");
-			}
-			btn.onclick = (evt) => {
-				if (!(evt.target as HTMLElement).closest("a")) this.choose(i);
-			};
-		});
-
-		if (answer === null) return;
-		const correct = card.choices[answer].correct;
-		const result = face.createDiv(`fc-result ${correct ? "is-correct" : "is-wrong"}`);
-		setIcon(result.createSpan("fc-result-icon"), correct ? "check" : "x");
-		result.createSpan({ text: correct ? "Correct!" : "Not quite. The right answer is highlighted." });
-		// An optional back: on a multiple-choice card is shown as an explanation once answered.
-		if (card.back) this.renderMarkdown(face.createDiv("fc-explanation"), card.back, sourcePath);
-	}
-
-	private renderTypedCard(parent: HTMLElement, card: Flashcard, sourcePath: string): void {
-		const face = parent.createDiv("fc-card fc-typed-card").createDiv("fc-face");
-		face.createDiv({ cls: "fc-face-label", text: "Question" });
-		this.renderMarkdown(face.createDiv("fc-face-body"), card.front, sourcePath);
-
-		const typed = this.typed;
-		const row = face.createDiv("fc-answer-row");
-		const input = row.createEl("input", {
-			cls: "fc-answer-input",
-			type: "text",
-			attr: { placeholder: "Type your answer", autocomplete: "off", autocapitalize: "off", spellcheck: "false" },
-		});
-
-		if (typed === null) {
-			input.value = this.draft;
-			input.oninput = () => { this.draft = input.value; };
-			input.onkeydown = (evt) => {
-				if (evt.key === "Enter") {
-					evt.preventDefault();
-					this.check(input.value);
-				} else if (evt.key === "Escape") {
-					input.blur();
-				}
-			};
-			row.createEl("button", { cls: "mod-cta", text: "Check" }).onclick = () => this.check(input.value);
-			// Ready to type, unless focus is somewhere else (like an editor beside this view) or it would pop up a phone keyboard.
-			const focused = input.doc.activeElement;
-			if (!Platform.isMobile && (!focused || focused === input.doc.body)) input.focus();
-			return;
-		}
-
-		const correct = isCorrectAnswer(card, typed);
-		input.value = typed;
-		input.disabled = true;
-		input.addClass(correct ? "is-correct" : "is-wrong");
-
-		const result = face.createDiv(`fc-result ${correct ? "is-correct" : "is-wrong"}`);
-		setIcon(result.createSpan("fc-result-icon"), correct ? "check" : "x");
-		const message = result.createSpan({ text: correct ? "Correct!" : "Not quite. The answer is " });
-		if (!correct) {
-			message.createEl("strong", { text: card.answers[0] });
-			message.appendText(".");
-		}
-		if (card.back) this.renderMarkdown(face.createDiv("fc-explanation"), card.back, sourcePath);
-	}
-
-	private renderFace(parent: HTMLElement, label: string, markdown: string, sourcePath: string): void {
-		const face = parent.createDiv(`fc-face fc-${label.toLowerCase()}`);
-		face.createDiv({ cls: "fc-face-label", text: label });
-		const body = face.createDiv("fc-face-body");
-		if (markdown) {
-			this.renderMarkdown(body, markdown, sourcePath);
-		} else {
-			body.createSpan({ cls: "fc-placeholder", text: `(no ${label.toLowerCase()})` });
-		}
-	}
-
-	private renderMarkdown(el: HTMLElement, markdown: string, sourcePath: string): void {
-		void MarkdownRenderer.render(this.app, markdown, el, sourcePath, this.renderComponent!);
-	}
-
 	private iconButton(parent: HTMLElement, icon: string, label: string, onClick: () => void): HTMLButtonElement {
 		const btn = parent.createEl("button", { attr: { "aria-label": label } });
 		setIcon(btn, icon);
@@ -349,9 +235,7 @@ export class FlashcardView extends ItemView {
 	}
 
 	private flip(): void {
-		if (!this.cardEl) return;
-		this.flipped = !this.flipped;
-		this.cardEl.toggleClass("is-flipped", this.flipped);
+		this.widget.flip();
 	}
 
 	private move(delta: number): void {
@@ -362,37 +246,20 @@ export class FlashcardView extends ItemView {
 		this.render();
 	}
 
-	/** Picks an option on the current multiple-choice card; the first pick is final. */
 	private choose(choice: number): void {
-		const card = this.visibleCards[this.position];
-		if (!card || this.answer !== null || choice >= card.choices.length) return;
-		this.answer = choice;
-		this.render();
-	}
-
-	/** Checks a typed answer on the current card; blank answers are ignored and the first check is final. */
-	private check(text: string): void {
-		const card = this.visibleCards[this.position];
-		if (!card || this.typed !== null || !card.answers.length || !text.trim()) return;
-		this.typed = text.trim();
-		this.render();
+		this.widget.choose(choice);
 	}
 
 	/** Enter flips a flip card, focuses an unchecked answer box, and goes to the next card once a question is answered. */
 	private enter(): void {
-		const card = this.visibleCards[this.position];
-		if (!card) return;
-		if (this.cardEl) this.flip();
-		else if (this.answer !== null || this.typed !== null) this.move(1);
-		else this.contentEl.querySelector<HTMLInputElement>(".fc-answer-input")?.focus();
+		if (!this.visibleCards[this.position]) return;
+		if (this.widget.isFlipCard) this.widget.flip();
+		else if (this.widget.answered) this.move(1);
+		else this.widget.focusAnswer();
 	}
 
-	/** Clears progress on the current card: which side is up and any chosen or typed answer. */
 	private resetCard(): void {
-		this.flipped = false;
-		this.answer = null;
-		this.typed = null;
-		this.draft = "";
+		this.widget.reset();
 	}
 
 	private setStarredOnly(starredOnly: boolean): void {

@@ -12,7 +12,7 @@
 		"obsidian",
 		"flashcards"
 	],
-	"license": "MIT",
+	"license": "GPL-3.0-only",
 	"devDependencies": {
 		"@types/node": "^20.0.0",
 		"esbuild": "^0.25.0",

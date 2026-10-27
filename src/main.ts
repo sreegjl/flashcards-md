@@ -1,4 +1,5 @@
-import { Editor, MarkdownRenderChild, MarkdownRenderer, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
+import { Component, Editor, MarkdownRenderChild, MarkdownRenderer, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
+import { CardWidget } from "./card";
 import { parseBlock } from "./parser";
 import { FlashcardView, VIEW_TYPE_FLASHCARDS } from "./view";
 
@@ -68,6 +69,35 @@ export default class FlashcardsPlugin extends Plugin {
 			}
 			// Multiple-choice and typed-answer cards only have a back when it's used as an explanation.
 			if (card.back || (!card.choices.length && !card.answers.length)) render(card.back, row("Back"));
+		});
+
+		// ```flashcard-inline blocks are playable right in the note: flip, pick an option or type an answer.
+		this.registerMarkdownCodeBlockProcessor("flashcard-inline", (source, el, ctx) => {
+			const card = { index: 0, ...parseBlock(source) };
+			const child = new MarkdownRenderChild(el);
+			ctx.addChild(child);
+			el.addClass("fc-inline-card");
+
+			// Owns the markdown for one drawing of the card, so it can be torn down when the card redraws.
+			let component: Component | null = null;
+			const draw = (): void => {
+				if (component) child.removeChild(component);
+				component = child.addChild(new Component());
+				el.empty();
+				widget.render(el, card, ctx.sourcePath, component);
+				const tools = el.createDiv("fc-inline-tools");
+				if (card.starred) setIcon(tools.createDiv({ cls: "fc-inline-star", attr: { "aria-label": "Starred" } }), "star");
+				if (widget.answered) {
+					const resetBtn = tools.createEl("button", { cls: "clickable-icon", attr: { "aria-label": "Try again" } });
+					setIcon(resetBtn, "rotate-ccw");
+					resetBtn.onclick = () => {
+						widget.reset();
+						draw();
+					};
+				}
+			};
+			const widget = new CardWidget(this.app, draw);
+			draw();
 		});
 
 		this.addRibbonIcon("layers", "Toggle flashcard view", () => {

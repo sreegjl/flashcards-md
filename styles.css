@@ -314,7 +314,8 @@
 
 /* Reading view drops the margin a code block's <pre> would have had, so add it back
    (Live Preview already spaces out its widgets). */
-.markdown-preview-view .fc-inline {
+.markdown-preview-view .fc-inline,
+.markdown-preview-view .fc-inline-card {
 	margin-block: var(--p-spacing, 1rem);
 }
 
@@ -374,4 +375,46 @@
 	width: 16px;
 	height: 16px;
 	fill: currentColor;
+}
+
+/* ---------- Playable ```flashcard-inline block ---------- */
+
+/* A smaller version of the flashcard view's card that fits in the flow of a note */
+.fc-inline-card {
+	position: relative;
+}
+
+.fc-inline-card .fc-card {
+	max-width: none;
+}
+
+.fc-inline-card .fc-face {
+	min-height: 160px;
+	padding: 14px 18px;
+	box-shadow: none;
+}
+
+.fc-inline-card .fc-face-body {
+	font-size: 1.1em;
+}
+
+.fc-inline-card .fc-choice-card .fc-face-body,
+.fc-inline-card .fc-typed-card .fc-face-body {
+	padding: 16px 0;
+}
+
+/* Bottom corner, since Live Preview puts its own edit button in the top corner of a code block */
+.fc-inline-tools {
+	position: absolute;
+	right: 10px;
+	bottom: 8px;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.fc-inline-tools .fc-inline-star {
+	position: static;
+	display: flex;
 }

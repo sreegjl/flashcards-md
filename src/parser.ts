@@ -15,8 +15,8 @@ export interface Flashcard {
 	starred: boolean;
 }
 
-// Matches a whole ```flashcard fenced block; group 1 is the body.
-const BLOCK_RE = /^```flashcard[ \t]*\r?\n([\s\S]*?)^```[ \t]*$/gm;
+// Matches a whole ```flashcard or ```flashcard-inline fenced block; group 1 is the body.
+const BLOCK_RE = /^```flashcard(?:-inline)?[ \t]*\r?\n([\s\S]*?)^```[ \t]*$/gm;
 const FIELD_RE = /^(front|back|answer|starred)\s*:\s?(.*)$/i;
 // A task-list item is a multiple-choice option: "- [ ] wrong", "- [x] right".
 const CHOICE_RE = /^\s*[-*+]\s+\[([ xX])\](?:\s+(.*))?$/;
