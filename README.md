@@ -10,7 +10,7 @@
 
 ### Flashcards MD
 
-An Obsidian plugin for writing flashcards in your notes, including [multiple-choice](#multiple-choice) and [typed-answer](#typed-answer) cards, and studying them in a flip-card view.
+An Obsidian plugin for writing flashcards in your notes, including [multiple-choice](#multiple-choice) and [typed-answer](#typed-answer) cards. Study them in a flip-card view, or right in the note with [inline cards](#playable-cards-in-notes).
 
 <br/>
 
