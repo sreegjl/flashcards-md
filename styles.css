@@ -1,0 +1,188 @@
+/* ---------- Flashcard view ---------- */
+
+.fc-view {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 16px;
+	padding: 24px 16px;
+}
+
+.fc-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	max-width: 640px;
+}
+
+.fc-title {
+	flex: 1;
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.fc-filter {
+	display: flex;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+.fc-filter button {
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+	background: transparent;
+}
+
+.fc-filter button.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.fc-empty {
+	margin-top: 48px;
+	color: var(--text-muted);
+	text-align: center;
+	max-width: 420px;
+}
+
+/* The card flips in 3D; both faces share one grid cell so the card sizes to the taller face. */
+.fc-card {
+	width: 100%;
+	max-width: 640px;
+	perspective: 1200px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.fc-card-inner {
+	display: grid;
+	transition: transform 0.45s ease;
+	transform-style: preserve-3d;
+}
+
+.fc-card.is-flipped .fc-card-inner {
+	transform: rotateY(180deg);
+}
+
+.fc-face {
+	grid-area: 1 / 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 280px;
+	padding: 20px 24px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-l);
+	background: var(--background-secondary);
+	box-shadow: var(--shadow-s);
+	backface-visibility: hidden;
+	-webkit-backface-visibility: hidden;
+}
+
+.fc-back {
+	transform: rotateY(180deg);
+}
+
+.fc-face-label {
+	font-size: var(--font-ui-smaller);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--text-faint);
+}
+
+.fc-face-body {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	text-align: center;
+	font-size: 1.25em;
+	user-select: text;
+}
+
+.fc-placeholder {
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+.fc-controls {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.fc-controls .fc-flip {
+	min-width: 96px;
+}
+
+.fc-controls button.is-starred {
+	color: var(--color-yellow);
+}
+
+.fc-controls button.is-starred svg {
+	fill: currentColor;
+}
+
+.fc-counter {
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.fc-hint {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+/* ---------- Inline preview of a ```flashcard block ---------- */
+
+.fc-inline {
+	position: relative;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	overflow: hidden;
+}
+
+.fc-inline-row {
+	display: flex;
+	gap: 12px;
+	padding: 8px 12px;
+}
+
+.fc-inline-row + .fc-inline-row {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.fc-inline-label {
+	flex: 0 0 44px;
+	font-size: var(--font-ui-smaller);
+	text-transform: uppercase;
+	color: var(--text-faint);
+	padding-top: 2px;
+}
+
+.fc-inline-body > :first-child {
+	margin-top: 0;
+}
+
+.fc-inline-body > :last-child {
+	margin-bottom: 0;
+}
+
+.fc-inline-star {
+	position: absolute;
+	top: 6px;
+	right: 8px;
+	color: var(--color-yellow);
+}
+
+.fc-inline-star svg {
+	width: 16px;
+	height: 16px;
+	fill: currentColor;
+}

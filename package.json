@@ -1,0 +1,19 @@
+{
+	"name": "flashcards-md",
+	"version": "1.0.0",
+	"description": "Obsidian plugin: study flashcards written in fenced code blocks.",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+	},
+	"keywords": ["obsidian", "flashcards"],
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^20.0.0",
+		"esbuild": "^0.25.0",
+		"obsidian": "latest",
+		"tslib": "^2.6.0",
+		"typescript": "^5.4.0"
+	}
+}
