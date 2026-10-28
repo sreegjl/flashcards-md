@@ -1,6 +1,6 @@
 {
 	"name": "flashcards-md",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Write flashcards in your notes, including multiple-choice and typed-answer cards, and study them in a flip-card view or right in the note.",
 	"main": "main.js",
 	"scripts": {

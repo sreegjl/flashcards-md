@@ -1,8 +1,8 @@
 {
 	"id": "flashcards-md",
 	"name": "Flashcards MD",
-	"version": "1.0.0",
-	"minAppVersion": "1.4.0",
+	"version": "1.0.1",
+	"minAppVersion": "1.5.7",
 	"description": "Write flashcards in your notes, including multiple-choice and typed-answer cards, and study them in a flip-card view or right in the note.",
 	"author": "sreegjl",
 	"isDesktopOnly": false
